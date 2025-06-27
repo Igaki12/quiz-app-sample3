@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2024 合同卒試A 過去問演習</title>
+    
+    <!-- Tailwind CSS (Play CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- canvas-confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        /* Custom Styles */
+        body {
+            background: linear-gradient(135deg, #FFDDE1, #EE9CA7);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        /* Custom toggle switch style */
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4ade80; /* green-400 */
+        }
+        .toggle-checkbox:checked + .toggle-label .toggle-dot {
+            transform: translateX(100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center font-sans text-gray-800 p-4">
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="w-full max-w-lg text-center">
+        <div class="glass-card p-8 rounded-2xl shadow-lg">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-700 mb-8">2024 合同卒試A 過去問演習</h1>
+            <div class="space-y-4">
+                <button onclick="startQuiz('sequential')" class="w-full bg-pink-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-pink-600 transition-all duration-300 transform hover:scale-105">
+                    <i class="fas fa-sort-numeric-down mr-2"></i>順番に問題を解く
+                </button>
+                <button onclick="startQuiz('random')" class="w-full bg-purple-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-purple-600 transition-all duration-300 transform hover:scale-105">
+                    <i class="fas fa-random mr-2"></i>ランダムに問題を解く
+                </button>
+            </div>
+        </div>
+        <footer class="mt-8 text-white/70 text-sm">
+            © 2025 Medteria. All rights reserved.
+        </footer>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="quiz-screen" class="hidden w-full max-w-4xl h-full">
+        <div class="glass-card p-4 sm:p-6 rounded-2xl shadow-lg flex flex-col h-full">
+            <!-- Header Status -->
+            <div class="flex flex-col sm:flex-row items-center justify-between mb-4 border-b border-white/20 pb-4">
+                <div class="w-24 h-24 sm:w-28 sm:h-28 relative">
+                    <canvas id="status-chart"></canvas>
+                    <div id="progress-text" class="absolute inset-0 flex items-center justify-center text-gray-700 font-bold text-lg"></div>
+                </div>
+                <div class="text-center sm:text-right mt-2 sm:mt-0">
+                    <p id="question-counter" class="text-xl font-semibold text-gray-700"></p>
+                    <p id="mode-display" class="text-sm text-gray-600"></p>
+                </div>
+                <button onclick="goToHome()" class="mt-4 sm:mt-0 bg-gray-500/50 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600/60 transition-all duration-300">
+                    <i class="fas fa-home mr-2"></i>タイトルに戻る
+                </button>
+            </div>
+
+            <!-- Question Area -->
+            <div class="flex-grow overflow-y-auto">
+                <div id="question-container" class="mb-4">
+                    <h2 id="question-title" class="text-xl font-bold mb-2"></h2>
+                    <p id="question-text" class="text-lg leading-relaxed whitespace-pre-wrap"></p>
+                </div>
+                <ul id="options-list" class="space-y-3 mb-4"></ul>
+
+                <!-- Answer and Explanation -->
+                <button id="explanation-toggle" onclick="toggleExplanation()" class="w-full bg-teal-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 mb-4">
+                    <i class="fas fa-lightbulb mr-2"></i>解答・解説を確認する
+                </button>
+                <div id="explanation-container" class="hidden glass-card p-4 rounded-lg">
+                    <p class="font-bold mb-2">正解: <span id="answer-text"></span></p>
+                    <p id="explanation-text" class="leading-relaxed"></p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex items-center justify-between mt-6 pt-4 border-t border-white/20">
+                <button id="prev-btn" onclick="prevQuestion()" class="bg-gray-500/50 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold text-gray-700">理解した</span>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="understood-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" onchange="toggleUnderstood()"/>
+                        <label for="understood-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                </div>
+                <button id="next-btn" onclick="nextQuestion()" class="bg-pink-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-pink-600 transition-all duration-300">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="hidden w-full max-w-lg text-center">
+        <canvas id="confetti-canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+        <div class="glass-card p-8 rounded-2xl shadow-lg">
+            <h1 class="text-3xl font-bold text-gray-700 mb-4">お疲れ様でした！</h1>
+            <p class="text-lg mb-6">全問終了です。素晴らしい！</p>
+            <div id="final-score" class="text-2xl font-bold text-pink-600 mb-8"></div>
+             <div class="space-y-4">
+                <button onclick="startQuiz(quizMode)" class="w-full bg-pink-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-pink-600 transition-all duration-300">
+                    <i class="fas fa-redo mr-2"></i>もう一度挑戦する
+                </button>
+                <button onclick="goToHome()" class="w-full bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-all duration-300">
+                   <i class="fas fa-home mr-2"></i> タイトルに戻る
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+// --- 問題データ ---
+const allQuestions = [
+    { id: 1, question: "DiGeorge症候群について正しいのはどれか。", select: 2, options: ["液性免疫が低下する。", "アデノシンデアミナーゼ (ADA) 酵素活性が欠損している。", "血小板が減少する。", "水痘が重症化しやすい。", "新生児テタニーが認められる。"], answer: ["d", "e"], explanation: "DiGeorge症候群は22q11.2欠失症候群で、CATCH22が特徴。胸腺低形成による細胞性免疫不全（dが正解）と、副甲状腺低形成による低Ca血症（eが正解）をきたす。" },
+    { id: 2, question: "身体表現性自律神経機能不全について正しいのはどれか。", select: 1, options: ["心電図で明確な異常が認められる。", "自律神経系の機能障害が原因である。", "症状は無意識的に引き起こされている。", "薬物療法には主に抗精神病薬が有効である。", "症状経過はストレスや感情の影響を受けない。"], answer: ["c"], explanation: "身体症状症の一種。器質的異常がなく、心理的要因が身体症状として無意識に現れる状態（cが正解）。検査で異常はなく(a)、ストレスの影響を強く受ける(e)。" },
+    { id: 3, question: "ボレリア感染症で生じる疾患はどれか。", select: 1, options: ["多形滲出性紅斑", "遊走性紅斑", "硬結性紅斑", "結節性紅斑", "爪囲紅斑"], answer: ["b"], explanation: "ボレリア（Lyme病）の最も特徴的な早期症状は遊走性紅斑（erythema migrans）である。" },
+    { id: 4, question: "ムンプス難聴について正しいのはどれか。", select: 2, options: ["高度難聴が多い。", "めまいを伴わない。", "両側に生じることはない。", "ワクチンで発症率を減らすことができる。", "副腎皮質ステロイド治療の有効性が高い。"], answer: ["a", "d"], explanation: "ムンプスの合併症で、多くは一側性の高度感音難聴となる(a)。ワクチンで予防可能(d)。ステロイドの有効性は確立されていない(e)。" },
+    { id: 5, question: "肺癌のステージを決定する際に必要な因子はどれか。", select: 3, options: ["遠隔転移", "辺縁不整", "腫瘍最大径", "肺表面からの深達度", "リンパ節転移の場所"], answer: ["a", "c", "e"], explanation: "肺癌のステージはTNM分類で決定される。T（原発腫瘍の大きさ(c)や広がり）、N（リンパ節転移(e)）、M（遠隔転移(a)）の3つの因子が基本となる。" },
+    { id: 6, question: "前縦隔に発生するのはどれか。", select: 3, options: ["胸腺腫", "神経原性腫瘍", "心膜囊胞", "胚細胞腫瘍", "異所性甲状腺腫"], answer: ["a", "d", "e"], explanation: "前縦隔腫瘍は「4つのT」が有名。Thymoma(胸腺腫:a)、Teratoma(胚細胞腫瘍:d)、Thyroid(甲状腺腫:e)、Terrible lymphoma。神経原性腫瘍は後縦隔、心膜囊胞は中縦隔に好発。" },
+    { id: 7, question: "Dressler症候群の薬物治療として適切なのはどれか。", select: 3, options: ["副腎皮質ステロイド", "高用量アスピリン", "NSAID", "アンジオテンシン変換酵素<ACE>阻害薬", "ニトログリセリン"], answer: ["a", "b", "c"], explanation: "心筋梗塞後の自己免疫性心膜炎。治療は抗炎症療法が中心で、NSAIDs、高用量アスピリン、ステロイドが用いられる。" },
+    { id: 8, question: "内痔核の悪化因子はどれか。", select: 3, options: ["飲酒", "入浴", "減量", "便秘", "妊娠"], answer: ["a", "d", "e"], explanation: "腹圧上昇やうっ血を助長する因子で悪化する。便秘時のいきみ(d)、妊娠による骨盤内静脈の圧迫(e)、飲酒による血流増加(a)が悪化因子。入浴は血行改善で症状を緩和する。" },
+    { id: 9, question: "NSAID潰瘍で正しいのはどれか。", select: 2, options: ["若年者に多い。", "前庭部に発生しやすい。", "プロトンポンプ阻害薬<PPI>で予防できる。", "胃粘膜内プロスタグランディン産生が亢進している。", "Helicobacter pyloriを除菌すると潰瘍治癒が促進される。"], answer: ["b", "c"], explanation: "NSAIDsはプロスタグランジン産生を抑制し潰瘍を起こす。胃の前庭部に好発し(b)、PPIで予防可能(c)。高齢者に多い(a)。PG産生は抑制される(d)。" },
+    { id: 10, question: "胆石症について正しいのはどれか。", select: 2, options: ["胆石症は胆囊結石が約 80%を占める。", "胆囊結石症は肝機能異常を高率に認める。", "胆石とは胆嚢の中に存在する結石のことをいう。", "胆石症、食道裂孔ヘルニア、大腸憩室症の合併をSaint 3徴と呼ぶ。", "コレステロール胆石は胆汁うっ滞に伴う胆道内の細菌感染により発生する。"], answer: ["a", "d"], explanation: "胆石の約80%が胆嚢結石である(a)。加齢に伴うSaint3徴(d)も正しい。胆石は胆道系全体の結石を指す(c)。コレステロール石はコレステロールの過飽和が主因(e)。" },
+    { id: 11, question: "血栓性微小血管障害(TMA)の原因となるのはどれか。", select: 3, options: ["Vero毒素", "血小板の増加", "ADAMTS13の減少", "凝固因子の活性化", "補体制御因子の低下"], answer: ["a", "c", "e"], explanation: "TMAの代表はTTPとHUS。HUSはVero毒素(a)や補体制御因子異常(e)で、TTPはADAMTS13活性低下(c)で起こる。血小板は消費され減少する(b)。" },
+    { id: 12, question: "長期透析患者に起こりやすい病態について正しいのはどれか。", select: 3, options: ["骨関節痛を生じる。", "低リン血症を生じる。", "低カルシウム血症を生じる。", "パラトルモン分泌が低下する。", "活性化ビタミンDが不足する。"], answer: ["a", "c", "e"], explanation: "腎でのビタミンD活性化障害とリン排泄障害により、低Ca血症(c)、高P血症(bではない)をきたす。結果、二次性副甲状腺機能亢進症となり、骨病変(線維性骨炎)で骨関節痛(a)を生じる。活性化ビタミンD不足(e)が根底にある。" },
+    { id: 13, question: "前立腺癌に対するCAB療法による有害事象として正しいのはどれか。", select: 3, options: ["多血症", "筋力低下", "骨密度増加", "性機能障害", "心血管疾患"], answer: ["b", "d", "e"], explanation: "CAB療法は男性ホルモンを強力に抑制するため、筋力低下(b)、性機能障害(d)、骨粗鬆症(cではない)、脂質異常やインスリン抵抗性による心血管疾患リスクの上昇(e)などが起こる。" },
+    { id: 14, question: "柔道による頭部外傷で最も多いのはどれか。", select: 1, options: ["急性硬膜外血腫", "急性硬膜下血腫", "慢性硬膜下血腫", "外傷性くも膜下出血", "脳挫傷"], answer: ["b"], explanation: "柔道の投げ技による転倒では、回転性の加速・減速が脳にかかり、脳と硬膜をつなぐ架橋静脈が断裂しやすく、急性硬膜下血腫が最も多い。" },
+    { id: 15, question: "出生直後の児の背部写真（別冊No. 1）を別に示す。本疾患について正しいのはどれか。", select: 3, options: ["出生前診断がなされる。", "Chiari 2型奇形を合併する。", "Dandy-Walker症候群を合併する。", "水頭症を合併する。", "好発部位は胸部である。"], answer: ["a", "b", "d"], explanation: "写真は脊髄髄膜瘤を示唆。多くは出生前エコーで診断される(a)。ほぼ全例でChiari 2型奇形(b)とそれに伴う水頭症(d)を合併する。好発部位は腰仙部(e)。" },
+    { id: 16, question: "アニオンギャップの上昇に伴う代謝性アシドーシスの原因として適切なのはどれか。", select: 3, options: ["尿細管性アシドーシス", "糖尿病性ケトアシドーシス", "乳酸アシドーシス", "慢性腎不全", "下痢"], answer: ["b", "c", "d"], explanation: "AG開大性アシドーシスは、体内に不揮発性酸が蓄積する病態。ケトン体(b)、乳酸(c)、尿毒素(d)の蓄積が原因。尿細管性アシドーシス(a)や下痢(e)はHCO3-の喪失が主体でAGは正常。" },
+    { id: 17, question: "偽性Bartter症候群でみられるのはどれか。", select: 2, options: ["高張尿", "筋力低下", "心電図上U波出現", "代謝性アシドーシス", "血漿レニン活性低下"], answer: ["b", "c"], explanation: "利尿薬乱用などで生じ、低K血症と代謝性アルカローシスをきたす。低K血症により筋力低下(b)やECGでのU波出現(c)がみられる。代謝性アルカローシス(dではない)で、RAAS系は賦活されレニンは上昇する(eではない)。" },
+    { id: 18, question: "食物依存性運動誘発アナフィラキシーの患児に対する日常生活指導として誤っているのはどれか。", select: 1, options: ["軽い運動は行っても良い。", "運動前の原因食物摂取を禁止する。", "アドレナリン自己注射薬を持ち歩く。", "原因食物摂取後 2時間の運動を禁止する。", "解熱鎮痛薬内服時には症状出現に注意する。"], answer: ["a"], explanation: "原因食物摂取後の運動は、強弱に関わらずアナフィラキシーを誘発する可能性があるため、完全に避けるべきである。「軽い運動は良い」という指導は誤り(a)。" },
+    { id: 19, question: "肺吸虫について正しいのはどれか。", select: 2, options: ["胆管に迷入する。", "肺癌や肺結核と症状が類似する。", "イノシシの生食はリスクとなる。", "海水中のカニの生食はリスクとなる。", "わが国では年間 1,000件以上報告される。"], answer: ["b", "c"], explanation: "咳嗽・血痰・胸部異常影など肺癌や結核に類似する(b)。中間宿主はサワガニなどの淡水ガニ(dではない)。待機宿主であるイノシシ(c)やブタの生食も感染源となる。報告数は年間数十件程度(e)。" },
+    { id: 20, question: "ニューモシスチス肺炎の予防に用いるのはどれか。", select: 2, options: ["プリマキン", "トリメトプリム", "プレドニゾロン", "クリンダマイシン", "スルファメトキサゾール"], answer: ["b", "e"], explanation: "ニューモシスチス肺炎(PCP)の予防および治療の第一選択はST合剤（スルファメトキサゾール(e)とトリメトプリム(b)の合剤）である。" },
+    { id: 21, question: "34歳の初妊婦。妊娠38週1日…(中略)…Bishopスコアはどれか。", select: 1, options: ["4点", "5点", "6点", "7点", "8点"], answer: ["a"], explanation: "Bishopスコアの評価：展退度50%(1点) + 開大度2cm(1点) + 硬度やや軟(1点) + 頸管位置 後方(0点) + 児頭下降度 SP-2(1点) = 合計4点。" },
+    { id: 22, question: "13歳の男子。腹痛を主訴に…(中略)…下部消化管内視鏡検査を行う根拠となるのはどれか。", select: 2, options: ["①学校を休むことが多くなった。", "②体重 38kg（1年間で5kg減少）。", "③脈拍 96/分、整。", "④腸蠕動音は軽度亢進している。", "⑤便潜血検査陽性。"], answer: ["b", "e"], explanation: "内視鏡検査のような侵襲的検査を行う根拠として、器質的疾患を示唆する徴候（alarm sign）が重要。成長期の体重減少(②)と消化管出血を示唆する便潜血陽性(⑤)は強力な根拠となる。" },
+    { id: 23, question: "日齢 12の女児。出生した産院から…(中略)…産院への対応として適切なのはどれか。", select: 1, options: ["「産院で赤ちゃんに浣腸を行い、経過観察してください」", "「当院でまずは診察しますので、今日すぐに受診させてください」", "「産院で再度ろ紙採血を検査機関へ提出し、結果を当院へ連絡してください」", "「虐待が疑われるので、児童相談所の虐待対応ダイヤルに連絡してください」", "「人工乳を併用するよう母親に指示し、3日後に小児科外来を受診させてください」"], answer: ["b"], explanation: "新生児マススクリーニングでの17-OHP高値は先天性副腎過形成症(CAH)を強く示唆する。塩類喪失発作は致死的であり、緊急の診察・検査・治療が必要。即時受診を指示するのが正しい(b)。" },
+    { id: 24, question: "41歳の男性。大学卒業後、…(中略)…治療薬として適切なのはどれか。", select: 2, options: ["バルプロ酸", "ジアゼパム", "イミプラミン", "パロキセチン", "炭酸リチウム"], answer: ["a", "e"], explanation: "うつ病エピソードと躁病エピソードを繰り返しており、双極性障害の診断。治療の基本は気分安定薬であり、バルプロ酸(a)と炭酸リチウム(e)が代表的。抗うつ薬(c,d)の単剤使用は躁転リスクがある。" },
+    { id: 25, question: "25歳の男性。数年前からの視野狭窄を主訴に…(中略)…患者への説明として適切なのはどれか。", select: 2, options: ["徐々に進行する可能性がある。", "診断には網膜電図検査<ERG>が必要である。", "硝子体手術で進行を予防できる。", "網膜剥離を合併することが多い。", "炎症発作を繰り返すことがある。"], answer: ["a", "b"], explanation: "若年発症の視野狭窄と典型的な眼底所見から網膜色素変性症が考えられる。進行性の疾患であり(a)、診断にはERGでの振幅低下（平坦ERG）が必須(b)。確立した治療法はない(c)。" },
+    { id: 26, question: "72歳の男性。6か月前からの左眼の視力低下を主訴に…(中略)…左眼に対する適切な治療はどれか。", select: 1, options: ["レーザー虹彩切開術", "角膜移植術", "後発白内障手術", "線維柱帯切除術", "角膜上皮搔把術"], answer: ["b"], explanation: "複数回の手術歴がある眼の著しい視力低下。写真では角膜全体の混濁（水疱性角膜症）が示唆される。これは角膜内皮細胞の廃絶によるものであり、治療は角膜移植術(b)となる。" },
+    { id: 27, question: "72歳の男性。半年前から足底に黒色調の…(中略)…この疾患で変異の頻度が高い遺伝子はどれか。", select: 1, options: ["ALK", "BRAF", "IDH1", "BRCA1", "ARID1A"], answer: ["b"], explanation: "足底の不整な色素斑は悪性黒色腫（メラノーマ）を強く示唆する。悪性黒色腫では約半数にBRAF遺伝子変異が認められ、分子標的治療の標的となる。" },
+    { id: 28, question: "18歳の女子。左頸部痛を主訴に…(中略)…この疾患について正しいのはどれか。", select: 2, options: ["左側が多い。", "無菌性炎症である。", "甲状腺機能は亢進する。", "副腎皮質ステロイドが有効である。", "甲状舌管が発症に関与する。"], answer: ["a", "c"], explanation: "若年者の左頸部痛、発熱、膿瘍形成は急性化膿性甲状腺炎を疑う。多くは下咽頭梨状窩瘻が原因で、解剖学的に左側に多い(a)。炎症による組織破壊でホルモンが漏れ出し、一過性に甲状腺機能が亢進することがある(c)。" },
+    { id: 29, question: "53歳の女性。大腸癌術後の転移性肺腫瘍に対して…(中略)…本疾患の治療に使うのはどれか。", select: 1, options: ["①", "②", "③", "④", "⑤"], answer: ["d"], explanation: "肺RFA後の気胸に対する治療を問う問題。気胸の治療には胸腔ドレナージを行う。示された器具の中から胸腔ドレーンを選ぶ。一般的に④が胸腔ドレーンの形状をしている。" },
+    { id: 30, question: "56歳の女性。乾性咳嗽と呼吸困難を主訴に…(中略)…次に行う対応で最も優先度の高いのはどれか。", select: 1, options: ["一般病棟への入院", "新型コロナウイルス<SARS-CoV-2>PCR検査", "インフルエンザウイルス迅速抗原検査", "喀痰培養", "気管支鏡検査"], answer: ["b"], explanation: "同居家族のCOVID-19発症という明確な接触歴があり、自身も発熱、呼吸器症状、呼吸不全を呈している。確定診断のためのSARS-CoV-2の核酸検出検査（PCRなど）が最優先。" },
+    { id: 31, question: "55歳の男性。息切れ、咳嗽、視力低下および結節性紅斑様皮疹を主訴に…(中略)…心臓病変の有無を検索するのに有用な検査はどれか。", select: 3, options: ["心電図", "冠動脈CT", "血液培養", "18F-FDG/PET", "心内膜心筋生検"], answer: ["a", "d", "e"], explanation: "両側肺門リンパ節腫脹、結節性紅斑、ACE高値からサルコイドーシスを疑う。心臓合併症（心サルコイドーシス）の評価が予後を左右する。不整脈の評価のための心電図(a)、炎症の活動性評価のためのFDG-PET(d)、確定診断のための心筋生検(e)が重要。" },
+    { id: 32, question: "65歳の男性。胸部異常陰影を指摘され…(中略)…胸部造影CTを施行する際に注意すべきものはどれか。", select: 2, options: ["腎機能", "喫煙歴", "肝機能", "ペースメーカの有無", "糖尿病治療薬服用の有無"], answer: ["a", "e"], explanation: "ヨード造影剤は腎排泄であり、腎機能(a)の確認は必須（造影剤腎症リスク）。また、糖尿病治療薬のうちビグアナイド系薬剤(e)は、腎機能低下時に乳酸アシドーシスを起こすリスクがあるため、原則休薬する。" },
+    { id: 33, question: "70歳の男性。会社の健康診断で50歳の時に…(中略)…治療方針として正しいのはどれか。", select: 2, options: ["降圧療法", "疼痛管理", "人工血管置換術", "抗菌薬の点滴静注", "副腎皮質ステロイドの点滴静注"], answer: ["a", "c"], explanation: "臍下の拍動性腫瘤、喫煙歴、高血圧から腹部大動脈瘤(AAA)が強く示唆される。治療の基本は、血圧コントロールによる拡大・破裂予防(a)と、径が大きい場合や有症状の場合の外科的治療（人工血管置換術(c)やステントグラフト内挿術）。" },
+    { id: 34, question: "75歳の男性。労作時の息切れのため受診した。…(中略)…治療法として正しいのはどれか。", select: 2, options: ["利尿薬投与", "タファミジス投与", "経皮的中隔心筋焼灼術", "副腎皮質ステロイド投与", "アガルシダーゼ補充療法"], answer: ["a", "b"], explanation: "高齢男性の心不全、心エコーでの壁肥厚、ピロリン酸心筋シンチ陽性からトランスサイレチン型心アミロイドーシス(ATTR-CM)と診断。心不全症状に対する利尿薬(a)と、疾患修飾薬であるタファミジス(b)が治療の主体。" },
+    { id: 35, question: "36歳の男性。数か月前からの軽労作でのふらつきを主訴に…(中略)…心雑音が減弱する状況はどれか。", select: 2, options: ["立位後", "輸液後", "怒責後", "運動後", "下肢挙上"], answer: ["b", "e"], explanation: "症例は閉塞性肥大型心筋症(HOCM)が示唆される。HOCMの雑音は、静脈還流量が増加し左室容積が大きくなると軽減する。輸液(b)や下肢挙上(e)は静脈還流量を増やすため、雑音が減弱する。" },
+    { id: 36, question: "76歳の女性。血便のために来院した。…(中略)…この患者に対する治療として適切なのはどれか。", select: 2, options: ["直腸切断術", "抗菌薬加療", "高圧酸素療法", "光線力学的療法", "内視鏡的アルゴンプラズマ凝固術"], answer: ["c", "e"], explanation: "子宮頸癌への放射線治療歴後の血便であり、放射線性直腸炎を考える。内視鏡像では毛細血管拡張が特徴。治療は出血部位に対するアルゴンプラズマ凝固術(APC)(e)や、組織修復を促す高圧酸素療法(c)などが行われる。" },
+    { id: 37, question: "48歳の男性。下腹部痛を主訴に…(中略)…現時点の対応で正しいのはどれか。", select: 3, options: ["絶食", "結腸切除術", "抗菌薬投与", "CTガイド下穿刺", "整腸薬投与"], answer: ["a", "c", "d"], explanation: "発熱、下腹部痛、炎症反応高値、CT所見から憩室炎（膿瘍形成の可能性）と診断。治療の基本は絶食(a)と抗菌薬投与(c)による保存的治療。膿瘍が大きければCTガイド下穿刺ドレナージ(d)を行う。" },
+    { id: 38, question: "85歳の女性。8時間前より続く腹痛と…(中略)…この病態について正しいのはどれか。", select: 1, options: ["肥満者に多い。", "腹腔鏡下手術は禁忌である。", "術前の画像診断率はほぼ100%である。", "徒手整復が困難な場合、保存的治療を行う。", "股関節の外転、伸展、内旋で大腿部の痛みが消失する。"], answer: ["c"], explanation: "高齢・痩せ型の女性に多い閉鎖孔ヘルニアによる腸閉塞。CTで閉鎖孔への腸管の嵌頓が明瞭に描出されるため、術前診断率は非常に高い(c)。絞扼性イレウスのリスクが高く緊急手術が原則(dではない)。" },
+    { id: 39, question: "48歳の男性。2か月前から持続する上腹部痛を主訴に…(中略)…この疾患の症状として適切なのはどれか。", select: 2, options: ["便秘", "血尿", "背部痛", "低血糖", "体重減少"], answer: ["c", "e"], explanation: "長期飲酒歴、上腹部痛、膵酵素上昇から慢性膵炎が示唆される。膵臓は後腹膜臓器のため痛みは背中に放散し(c)、外分泌・内分泌機能低下により消化吸収障害や糖尿病をきたし体重が減少する(e)。" },
+    { id: 40, question: "82歳の男性。肝硬変で経過観察中、…(中略)…治療法として正しいのはどれか。", select: 1, options: ["ラジオ波焼灼療法", "拡大右葉切除術", "経皮的肝動脈化学塞栓療法", "アテゾリズマブ＋ベバシズマブによる薬物療法", "肝移植"], answer: ["d"], explanation: "肝硬変ベースの進行肝細胞癌。腫瘍が多発しており、切除や局所療法の適応外。現在の標準的な一次薬物療法は、免疫チェックポイント阻害薬アテゾリズマブと血管新生阻害薬ベバシズマブの併用療法である。" },
+    { id: 41, question: "41歳の女性。全身倦怠感を主訴に…(中略)…最初に開始する治療法として正しいのはどれか。", select: 1, options: ["血漿交換", "ビリルビン吸着", "アルブミン製剤の投与", "副腎皮質ステロイドの投与", "利尿薬の投与"], answer: ["d"], explanation: "AST/ALTの著増、高IgG血症、抗核抗体高値から自己免疫性肝炎(AIH)の急性増悪を考える。AIHの治療の第一選択は副腎皮質ステロイド(d)による免疫抑制療法である。" },
+    { id: 42, question: "76歳の男性。白血球数増加の精査を目的に…(中略)…適切な治療はどれか。", select: 1, options: ["自家末梢血幹細胞移植", "イダルビシン＋シタラビン", "免疫チェックポイント阻害薬", "レナリドミド", "チロシンキナーゼ阻害薬"], answer: ["e"], explanation: "高齢男性、リンパ球増多、脾腫、CD5/CD20/CD23陽性から慢性リンパ性白血病(CLL)の診断。CLLの治療ではブルトン型チロシンキナーゼ(BTK)阻害薬（イブルチニブなど）が中心的な役割を果たす。" },
+    { id: 43, question: "23歳の男性。発熱と関節痛を主訴に…(中略)…この症例について正しいのはどれか。", select: 3, options: ["T細胞性が多い。", "副腎皮質ステロイドが有効である。", "初発時の標準治療はアザシチジンである。", "再発例ではブリナツモマブが利用可能である。", "再発例ではポナチニブが利用可能である。"], answer: ["b", "d", "e"], explanation: "t(9;22)陽性の急性リンパ性白血病(Ph+ALL)。ALLの寛解導入にはステロイドが必須(b)。再発難治例にはCD19標的のBiTE抗体ブリナツモマブ(d)や、耐性変異にも有効な第3世代TKIポナチニブ(e)が用いられる。" },
+    { id: 44, question: "76歳の女性。IgA腎症由来の腎不全で…(中略)…診断時に必要な主要症状で正しいのはどれか。", select: 3, options: ["骨折", "弾撥指", "多関節痛", "皮下腫瘤", "手根管症候群"], answer: ["b", "c", "e"], explanation: "長期透析患者の関節・神経症状。β2-マイクログロブリンがアミロイドとして沈着する透析アミロイドーシスを考える。手根管症候群(e)、弾撥指(b)、破壊性関節症による多関節痛(c)が3主徴。" },
+    { id: 45, question: "20歳の男性。下肢の浮腫を主訴に…(中略)…予想される病理組織像はどれか。", select: 1, options: ["①", "②", "③", "④", "⑤"], answer: ["a"], explanation: "若年男性のネフローゼ症候群で最も多いのは微小変化型ネフローゼ症候群(MCNS)。MCNSの病理像は、光学顕微鏡でほぼ正常(①)、蛍光抗体法で免疫グロブリン沈着なし、電子顕微鏡で足突起の広範な癒合が特徴。" },
+    { id: 46, question: "28歳の女性（1妊1産）。外陰部の瘙痒感と…(中略)…診断を推定するうえで重要でない情報はどれか。", select: 1, options: ["妊娠の有無", "糖尿病の有無", "抗菌薬使用の有無", "子宮内膜症の有無", "自己免疫疾患の有無"], answer: ["d"], explanation: "瘙痒感と白色帯下からカンジダ外陰腟炎を疑う。リスク因子は妊娠、糖尿病、抗菌薬使用、ステロイド使用（自己免疫疾患治療など）であり、これらは問診で重要。子宮内膜症は直接的なリスク因子ではなく、重要度は低い。" },
+    { id: 47, question: "18歳の女子。未経妊。無月経と性交困難を主訴に…(中略)…この患者への対応として正しいのはどれか。", select: 1, options: ["卵子凍結", "子宮全摘術", "性腺摘出術", "非観血的造膣術", "遺伝カウンセリング"], answer: ["d"], explanation: "二次性徴は正常でホルモン値も正常だが、子宮・腟が欠損していることからMayer-Rokitansky-Küster-Hauser(MRKH)症候群と診断。治療の第一選択は、自己拡張器を用いた非観血的造膣術である。" },
+    { id: 48, question: "29歳の女性。上下肢筋力低下を主訴に…(中略)…この疾患について正しいのはどれか。", select: 2, options: ["意識障害が起こりやすい。", "後遺症を残しやすい。", "再発をくりかえしやすい。", "小児に起こりやすい。", "女性に起こりやすい。"], answer: ["a", "d"], explanation: "先行感染後に発症する多発性の中枢神経症状とMRI所見から急性散在性脳脊髄炎(ADEM)を考える。ADEMは小児に好発し(d)、広範な病変により意識障害をきたすこともある(a)。通常は単相性で予後良好。" },
+    { id: 49, question: "76歳の男性。しゃべりにくさ、発語量の低下を主訴に…(中略)…この疾患において誤っているのはどれか。", select: 1, options: ["前頭葉と頭頂葉に強い萎縮を認める。", "Parkinson病治療薬が著効する。", "神経細胞にタウ蛋白が蓄積する。", "進行すると、他人の手徴候を認める。", "発症後10年以内に寝たきりになることが多い。"], answer: ["b"], explanation: "非対称性のパーキンソニズム、失行、非流暢性失語などから大脳皮質基底核変性症(CBD)を考える。CBDのパーキンソニズムはL-dopaに反応しないのが特徴であり、「著効する」(b)は誤り。" },
+    { id: 50, question: "59歳の女性。左口角下垂と左手筋力低下が出現したため…(中略)…診断のために次に行う検査はどれか。", select: 1, options: ["血液培養", "喀痰Gram染色", "喀痰Grocott染色", "血中アスペルギルス抗原", "脳脊髄液JCウイルスDNA"], answer: ["e"], explanation: "免疫不全状態の患者に進行性の多巣性白質脳症をきたしており、進行性多巣性白質脳症(PML)を強く疑う。確定診断には脳脊髄液中のJCウイルスDNAの検出が不可欠。" },
+    { id: 51, question: "40歳の女性。乗用車で走行中に後続車両に追突され…(中略)…頸髄損傷の損傷パターンとして正しいのはどれか。", select: 1, options: ["後部脊髄損傷", "前部脊髄損傷", "脊髄半側損傷", "横断性脊髄損傷", "中心性脊髄損傷"], answer: ["e"], explanation: "追突による頸部の過伸展損傷で、上肢に強く下肢に弱い麻痺・感覚障害をきたすのは、中心性脊髄損傷の典型的な症状である。" },
+    { id: 52, question: "64歳の女性。意識低下のため救急車で搬入された。…(中略)…まず投与を考慮すべきなのはどれか。", select: 3, options: ["抗菌薬", "グルコース", "生理食塩液", "ヒドロコルチゾン", "レボチロキシン"], answer: ["b", "c", "d"], explanation: "下垂体腫瘍術後でホルモン補充中の患者が、感染を契機にショック、意識障害、低血糖、低Na、高Kをきたしており、副腎クリーゼと診断。治療は①ショックに対する大量輸液(生理食塩液:c)、②ステロイド補充(ヒドロコルチゾン:d)、③低血糖補正(グルコース:b)を緊急に行う。" },
+    { id: 53, question: "34歳の女性。繰り返す尿路結石を主訴に…(中略)…検査で適切でないのはどれか。", select: 1, options: ["血中下垂体ホルモン測定", "24時間蓄尿検査", "腹部造影CT", "骨密度検査", "Ellsworth-Howard試験"], answer: ["e"], explanation: "尿路結石、高Ca血症、高PTH血症から原発性副甲状腺機能亢進症を疑う。Ellsworth-Howard試験(e)は偽性副甲状腺機能低下症の診断に用いる負荷試験であり、本疾患の診断には不要。" },
+    { id: 54, question: "26歳の女性。動悸、体重減少および多汗を主訴に…(中略)…この疾患の病理組織像はどれか。", select: 1, options: ["①", "②", "③", "④", "⑤"], answer: ["e"], explanation: "甲状腺中毒症の臨床像とTRAb陽性からBasedow病と診断。その病理組織像は、濾胞上皮細胞の増生による乳頭状構造の形成と、コロイドの吸収亢進による辺縁部の空胞化が特徴であり、⑤が該当する。" },
+    { id: 55, question: "21歳の女性。健康診断で尿蛋白を指摘されて…(中略)…この疾患の特徴はどれか。", select: 2, options: ["緑内障", "左室肥大", "感音難聴", "四肢末端痛", "糸球体基底膜の肥厚と菲薄化"], answer: ["b", "d"], explanation: "家族歴のある若年者の蛋白尿。α-ガラクトシダーゼAの異常によるFabry病を疑う。糖脂質が全身に沈着し、特徴的な症状として四肢末端の疼痛(d)や心筋への沈着による左室肥大(b)が挙げられる。" },
+    { id: 56, question: "32歳の女性。空腹時の冷汗、動悸および手の震えを主訴に…(中略)…この病態の発症と関連する薬剤として最も考えられるのはどれか。", select: 1, options: ["フロセミド", "メトホルミン", "ヒドロクロロチアジド", "クロピドグレル", "プレドニゾロン"], answer: ["d"], explanation: "空腹時低血糖、高インスリン血症、インスリン抗体陽性からインスリン自己免疫症候群(IAS)と診断。SH基を持つ薬剤が誘引となりやすく、選択肢の中ではクロピドグレル(d)が該当する。" },
+    { id: 57, question: "48歳の女性。35歳時に気管支喘息を発症し、…(中略)…この疾患の特徴として正しいのはどれか。", select: 3, options: ["マンゴー以外のフルーツは安全に食べられる。", "アトピー性皮膚炎の患者に多い。", "新規発症患者は増えている。", "二分脊椎症の患者に多い。", "医療従事者に多い。"], answer: ["b", "d", "e"], explanation: "ゴム製品とフルーツ（マンゴー）でアレルギー症状を呈しており、ラテックス・フルーツ症候群を考える。ラテックスアレルギーは、アトピー素因を持つ人(b)、ラテックスへの曝露機会が多い医療従事者(e)や二分脊椎症患者(d)に多い。" },
+    { id: 58, question: "72歳の男性。3日前の夕方から発熱、右胸痛および膿性の喀痰が…(中略)…抗菌薬の選択として正しいのはどれか。", select: 2, options: ["第3世代セファロスポリン系薬", "テトラサイクリン系薬", "ニューキノロン系薬", "バンコマイシン", "メトロニダゾール"], answer: ["a", "c"], explanation: "喀痰培養で肺炎桿菌(*Klebsiella pneumoniae*)が検出された市中肺炎。肺炎桿菌はグラム陰性桿菌であり、これに有効な第3世代セファロスポリン系薬(a)やレスピラトリーキノロンなどのニューキノロン系薬(c)が治療選択肢となる。" },
+    { id: 59, question: "5歳の女児。発熱、下痢および腹痛を主訴として…(中略)…本疾患について正しいのはどれか。", select: 2, options: ["無治療でも自然に軽快する。", "便培養が最も有効な検査である。", "わが国では国内発生例より輸入例が多い。", "母親に胆嚢炎がみられる可能性が高い。", "キノロン系薬に対する耐性化はみられない。"], answer: ["c", "d"], explanation: "インドからの帰国者で家族内発症があり、腸チフスを疑う。腸チフスは日本ではほとんどが輸入感染症である(c)。また、治癒後も胆嚢に保菌しキャリアとなることがあり、胆石・胆嚢炎のリスクとなる(d)。キノロン耐性菌は大きな問題である(eではない)。" },
+    { id: 60, question: "84歳の男性。8月上旬に自宅のベット上で、意識がないところを…(中略)…直ちに行うべき治療として適切でないのはどれか。", select: 1, options: ["冷却した細胞外液補充", "冷却ブランケット", "アセトアミノフェン点滴静注", "扇風機による蒸泄法", "血管内冷却カテーテル"], answer: ["c"], explanation: "状況から重度の熱中症（熱射病）と診断。治療は迅速な身体冷却が最優先。熱中症の高体温は体温調節中枢の異常によるものであり、セットポイントが変化する感染性発熱とは異なる。そのため、アセトアミノフェンなどの解熱薬は無効であり、肝障害のリスクから禁忌である(c)。" }
+];
+
+
+// --- アプリケーションのロジック ---
+const startScreen = document.getElementById('start-screen');
+const quizScreen = document.getElementById('quiz-screen');
+const resultScreen = document.getElementById('result-screen');
+
+const questionCounter = document.getElementById('question-counter');
+const modeDisplay = document.getElementById('mode-display');
+const questionTitle = document.getElementById('question-title');
+const questionText = document.getElementById('question-text');
+const optionsList = document.getElementById('options-list');
+const explanationToggle = document.getElementById('explanation-toggle');
+const explanationContainer = document.getElementById('explanation-container');
+const answerText = document.getElementById('answer-text');
+const explanationText = document.getElementById('explanation-text');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const understoodToggle = document.getElementById('understood-toggle');
+const progressText = document.getElementById('progress-text');
+const finalScore = document.getElementById('final-score');
+
+let currentQuestionIndex = 0;
+let questionOrder = [];
+let quizMode = '';
+let statusChart;
+
+function init() {
+    loadState();
+    startScreen.classList.remove('hidden');
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+}
+
+function startQuiz(mode) {
+    quizMode = mode;
+    currentQuestionIndex = 0;
+    
+    questionOrder = allQuestions.map((_, index) => index);
+    if (mode === 'random') {
+        shuffleArray(questionOrder);
+        modeDisplay.textContent = 'モード: ランダム';
+    } else {
+        modeDisplay.textContent = 'モード: 順番通り';
+    }
+
+    startScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+    quizScreen.classList.remove('hidden');
+
+    renderQuestion();
+    renderStatusChart();
+}
+
+function renderQuestion() {
+    // Reset state
+    explanationContainer.classList.add('hidden');
+    explanationToggle.textContent = '解答・解説を確認する';
+    explanationToggle.classList.remove('bg-gray-400');
+    explanationToggle.classList.add('bg-teal-500');
+
+    const questionIndex = questionOrder[currentQuestionIndex];
+    const question = allQuestions[questionIndex];
+
+    if (question.status === 'not-seen') {
+        question.status = 'seen';
+    }
+    
+    questionTitle.textContent = `問題 ${question.id}`;
+    questionText.textContent = question.question;
+
+    optionsList.innerHTML = '';
+    const optionChars = ['a', 'b', 'c', 'd', 'e'];
+    question.options.forEach((option, index) => {
+        const li = document.createElement('li');
+        li.dataset.option = optionChars[index];
+        li.className = 'glass-card p-3 rounded-lg cursor-pointer hover:bg-white/50 transition-all duration-200';
+        li.innerHTML = `<span class="font-bold mr-2">${optionChars[index].toUpperCase()}.</span> ${option}`;
+        optionsList.appendChild(li);
+    });
+
+    understoodToggle.checked = question.understood;
+
+    updateNavigation();
+    updateStatus();
+    saveState();
+}
+
+function updateStatus() {
+    const questionIndex = questionOrder[currentQuestionIndex];
+    const question = allQuestions[questionIndex];
+
+    questionCounter.textContent = `問題 ${currentQuestionIndex + 1} / ${allQuestions.length}`;
+    progressText.textContent = `${currentQuestionIndex + 1}/${allQuestions.length}`;
+
+    // Update chart
+    const counts = getStatusCounts();
+    statusChart.data.datasets[0].data = [counts.understood, counts.seen, counts.notSeen];
+    statusChart.update();
+}
+
+function updateNavigation() {
+    prevBtn.disabled = currentQuestionIndex === 0;
+    if (currentQuestionIndex === allQuestions.length - 1) {
+        nextBtn.innerHTML = '<i class="fas fa-flag-checkered"></i> 結果へ';
+    } else {
+        nextBtn.innerHTML = '<i class="fas fa-arrow-right"></i>';
+    }
+}
+
+function toggleExplanation() {
+    const isHidden = explanationContainer.classList.toggle('hidden');
+    
+    if (isHidden) {
+        explanationToggle.textContent = '解答・解説を確認する';
+    } else {
+        const questionIndex = questionOrder[currentQuestionIndex];
+        const question = allQuestions[questionIndex];
+        
+        answerText.textContent = question.answer.map(a => a.toUpperCase()).join(', ');
+        explanationText.textContent = question.explanation;
+
+        // Highlight correct answers
+        document.querySelectorAll('#options-list li').forEach(li => {
+            li.classList.remove('bg-green-300', 'border-green-500', 'border-2');
+            if (question.answer.includes(li.dataset.option)) {
+                li.classList.add('bg-green-300', 'border-green-500', 'border-2');
+            }
+        });
+        explanationToggle.textContent = '解説を閉じる';
+    }
+}
+
+function toggleUnderstood() {
+    const questionIndex = questionOrder[currentQuestionIndex];
+    allQuestions[questionIndex].understood = understoodToggle.checked;
+    if (allQuestions[questionIndex].understood) {
+        allQuestions[questionIndex].status = 'understood';
+    } else {
+        allQuestions[questionIndex].status = 'seen';
+    }
+    updateStatus();
+    saveState();
+}
+
+function nextQuestion() {
+    if (currentQuestionIndex < allQuestions.length - 1) {
+        currentQuestionIndex++;
+        renderQuestion();
+    } else {
+        showResult();
+    }
+}
+
+function prevQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        renderQuestion();
+    }
+}
+
+function showResult() {
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+
+    const counts = getStatusCounts();
+    const understoodRate = ((counts.understood / allQuestions.length) * 100).toFixed(1);
+    finalScore.textContent = `理解度: ${understoodRate}% (${counts.understood} / ${allQuestions.length} 問)`;
+    
+    // Confetti animation
+    const myCanvas = document.getElementById('confetti-canvas');
+    const myConfetti = confetti.create(myCanvas, {
+        resize: true,
+        useWorker: true
+    });
+    myConfetti({
+        particleCount: 150,
+        spread: 180,
+        origin: { y: 0.6 }
+    });
+}
+
+function goToHome() {
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+}
+
+function getStatusCounts() {
+    let understood = 0;
+    let seen = 0;
+    let notSeen = 0;
+    allQuestions.forEach(q => {
+        if (q.understood) {
+            understood++;
+        } else if (q.status === 'seen') {
+            seen++;
+        } else {
+            notSeen++;
+        }
+    });
+    return { understood, seen, notSeen };
+}
+
+function renderStatusChart() {
+    const ctx = document.getElementById('status-chart').getContext('2d');
+    const counts = getStatusCounts();
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['理解済み', '学習中', '未学習'],
+            datasets: [{
+                data: [counts.understood, counts.seen, counts.notSeen],
+                backgroundColor: [
+                    'rgba(74, 222, 128, 0.8)', // green-400
+                    'rgba(251, 191, 36, 0.8)', // amber-400
+                    'rgba(209, 213, 219, 0.8)'  // gray-300
+                ],
+                borderColor: [
+                    'rgba(34, 197, 94, 1)',
+                    'rgba(245, 158, 11, 1)',
+                    'rgba(156, 163, 175, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: true
+                }
+            }
+        }
+    });
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+// --- Local Storage for State Persistence ---
+function saveState() {
+    const state = allQuestions.map(q => ({ status: q.status, understood: q.understood }));
+    localStorage.setItem('medteriaQuizState2024A', JSON.stringify(state));
+}
+
+function loadState() {
+    const savedState = localStorage.getItem('medteriaQuizState2024A');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        if (state.length === allQuestions.length) {
+            allQuestions.forEach((q, index) => {
+                q.status = state[index].status || 'not-seen';
+                q.understood = state[index].understood || false;
+            });
+        }
+    } else {
+         allQuestions.forEach(q => {
+            q.status = 'not-seen';
+            q.understood = false;
+        });
+    }
+}
+
+// Initialize the app
+window.onload = init;
+
+</script>
+
+</body>
+</html>
